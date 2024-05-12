@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Determine the path to the installed gitleaks
+GITLEAKS_PATH=$(which gitleaks)
+
+# Function to install gitleaks using curl pipe sh
+install_gitleaks() {
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        curl -sSfL https://github.com/zricethezav/gitleaks/releases/latest/download/gitleaks-linux-amd64 --output gitleaks
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        curl -sSfL https://github.com/zricethezav/gitleaks/releases/latest/download/gitleaks-darwin-amd64 --output gitleaks
+    else
+        echo "Error: Unsupported operating system"
+        exit 1
+    fi
+
+    chmod +x gitleaks
+    sudo mv gitleaks /usr/local/bin/
+}
+
+# Check if gitleaks is installed, if not, install it
+if [ -z "$GITLEAKS_PATH" ]; then
+    echo "Gitleaks is not installed. Installing..."
+    install_gitleaks
+fi
+
+# Check if gitleaks check is enabled via git config
+GITLEAKS_ENABLED=$(git config --get hooks.gitleaks)
+
+if [ "$GITLEAKS_ENABLED" = "true" ]; then
+    # Execute gitleaks to check for secrets
+    gitleaks --verbose
+    if [ $? -ne 0 ]; then
+        echo "Error: Secrets found in the code. Commit rejected."
+        exit 1
+    else
+        echo "No secrets found. Commit allowed."
+        exit 0
+    fi
+else
+    echo "Gitleaks check is not enabled. Skipping..."
+    exit 0
+fi
